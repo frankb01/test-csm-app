@@ -27,7 +27,7 @@ Langage : Python 3.9+
 Cloner le dépôt :
 
 Bash
-git clone https://github.com/VOTRE_NOM/csm-ai-coach.git
+git clone https://github.com/frankb01/test-csm-app.git
 cd csm-ai-coach
 Installer les dépendances :
 
