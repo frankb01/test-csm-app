@@ -3,79 +3,53 @@ from openai import OpenAI
 from st_audiorec import st_audiorec
 import os
 
-# 1. Configuration et Style
+# 1. Configuration de la page
 st.set_page_config(page_title="CSM Coach AI", page_icon="🚀", layout="centered")
 st.title("🚀 Simulateur d'Entretien CSM")
 
-# 2. Initialisation Client
+# 2. Initialisation du Client OpenAI
 if "OPENAI_API_KEY" not in st.secrets:
     st.error("Clé API manquante dans les Secrets Streamlit !")
     st.stop()
 
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# 3. Système de mémoire (Session State)
+# 3. Initialisation de la mémoire (Session State)
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "system", "content": """Tu es un recruteur senior CSM. 
+        {"role": "system", "content": """Tu es un recruteur senior CSM expert. 
         - Pose UNE SEULE question à la fois.
         - Attends TOUJOURS la réponse du candidat avant de continuer.
-        - Analyse les tics de langage ('euh', 'du coup', 'petit').
-        - Après 5 questions, donne un score sur 20 et un débriefing.""" }
+        - Analyse la précision des réponses (STAR, KPI, ROI).
+        - Analyse l'éloquence : repère les tics ('euh', 'du coup', 'en fait', 'petit').
+        - Après 5 questions, donne un score sur 20 et un débriefing complet.""" }
     ]
 
-# 4. Affichage de l'historique (sauf le prompt système)
-for msg in st.session_state.messages[1:]:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+# --- 4. AFFICHAGE DE LA CONVERSATION ---
+# On affiche tout l'historique mémorisé avant de décider de la suite
+for msg in st.session_state.messages:
+    if msg["role"] != "system":
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
-# --- LOGIQUE DE TOUR PAR TOUR ---
+# --- 5. LOGIQUE DE DÉCISION DU TOUR ---
 last_role = st.session_state.messages[-1]["role"]
 
-# A. Si c'est au tour de l'IA de parler (après le système ou après l'utilisateur)
 if last_role in ["system", "user"]:
+    # C'est au tour de l'IA de générer la question
     with st.chat_message("assistant"):
         with st.spinner("Le recruteur prépare sa question..."):
             response = client.chat.completions.create(
-                model="gpt-4o", # Ou "gpt-4o-mini" pour économiser
+                model="gpt-4o",
                 messages=st.session_state.messages
             )
             ai_txt = response.choices[0].message.content
-            st.markdown(ai_txt)
+            # On enregistre le message
             st.session_state.messages.append({"role": "assistant", "content": ai_txt})
-            st.rerun() # Relance pour afficher les widgets de réponse
+            # On force le rafraîchissement pour que la boucle d'affichage (étape 4) montre la question
+            st.rerun()
 
-# B. Si c'est au tour de l'Utilisateur (le dernier message est 'assistant')
 else:
+    # C'est au tour de l'UTILISATEUR (le dernier message est celui de l'IA)
     st.divider()
-    st.write("### 🎙️ Votre réponse")
-    
-    # Widget Audio
-    wav_audio_data = st_audiorec()
-    
-    # Widget Texte (au cas où)
-    text_input = st.chat_input("Ou répondez par écrit ici...")
-
-    # Traitement de l'Audio
-    if wav_audio_data is not None:
-        # On vérifie que le fichier n'est pas vide (buffer de sécurité)
-        if len(wav_audio_data) > 5000:
-            with st.spinner("Transcription de votre voix..."):
-                with open("temp_audio.wav", "wb") as f:
-                    f.write(wav_audio_data)
-                
-                with open("temp_audio.wav", "rb") as audio_file:
-                    transcript = client.audio.transcriptions.create(
-                        model="whisper-1", 
-                        file=audio_file,
-                        response_format="text"
-                    )
-                
-                if transcript.strip():
-                    st.session_state.messages.append({"role": "user", "content": transcript})
-                    st.rerun()
-
-    # Traitement du Texte
-    if text_input:
-        st.session_state.messages.append({"role": "user", "content": text_input})
-        st.rerun()
+    st.write("### 🎙️ Votre
