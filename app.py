@@ -52,4 +52,35 @@ if last_role in ["system", "user"]:
 else:
     # C'est au tour de l'UTILISATEUR (le dernier message est celui de l'IA)
     st.divider()
-    st.write("### 🎙️ Votre
+    st.write("### 🎙️ Votre réponse")
+    
+    # On utilise des colonnes pour organiser les entrées
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        wav_audio_data = st_audiorec()
+    
+    with col2:
+        text_input = st.chat_input("Ou répondez par écrit ici...")
+
+    # Traitement de l'Audio
+    if wav_audio_data is not None and len(wav_audio_data) > 5000:
+        with st.spinner("Transcription de votre voix..."):
+            with open("temp_audio.wav", "wb") as f:
+                f.write(wav_audio_data)
+            
+            with open("temp_audio.wav", "rb") as audio_file:
+                transcript = client.audio.transcriptions.create(
+                    model="whisper-1", 
+                    file=audio_file,
+                    response_format="text"
+                )
+            
+            if transcript.strip():
+                st.session_state.messages.append({"role": "user", "content": transcript})
+                st.rerun()
+
+    # Traitement du Texte
+    if text_input:
+        st.session_state.messages.append({"role": "user", "content": text_input})
+        st.rerun()
